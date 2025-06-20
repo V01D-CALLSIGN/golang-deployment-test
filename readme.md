@@ -1,149 +1,259 @@
 ````markdown
-# Fullstack Go + Vite React App
+# Fullstack Go + React + AWS Project Command Guide
 
-This repository contains a complete setup for a simple fullstack app with:
-
-- **Backend:** Go HTTP API serving JSON at `/hello`  
-- **Frontend:** React app built with Vite, fetching from the Go API and displaying the message  
-- **Styling:** Light sky blue background with a dark blue button, loading state, and clean UI  
+This guide contains **all terminal commands and setup steps** needed to create and deploy a fullstack application using Go for the backend and React (via Vite) for the frontend. It includes instructions for local development and deployment to AWS Lambda with API Gateway, **excluding any private data**. Application code is **not** included—only terminal and configuration commands.
 
 ---
 
-# Table of Contents
+## Contents
 
-- [Prerequisites](#prerequisites)  
-- [Installation and Setup](#installation-and-setup)  
-  - [1. Install Homebrew](#1-install-homebrew)  
-  - [2. Install Node.js and npm](#2-install-nodejs-and-npm)  
-  - [3. Setup Backend (Go API)](#3-setup-backend-go-api)  
-  - [4. Setup Frontend (Vite + React)](#4-setup-frontend-vite--react)  
-- [Running the Application](#running-the-application)  
-- [Deployment Notes](#deployment-notes)  
-- [Troubleshooting](#troubleshooting)  
-- [Optional Convenience Tips](#optional-convenience-tips)  
+1. [Initial Setup](#1-initial-setup)  
+2. [Backend (Go) Setup](#2-backend-go-setup)  
+3. [Frontend (Vite + React) Setup](#3-frontend-vite--react-setup)  
+4. [AWS Deployment Setup](#4-aws-deployment-setup)  
+5. [Lambda + API Gateway Deployment](#5-lambda--api-gateway-deployment)  
+6. [Testing & Troubleshooting](#6-testing--troubleshooting)  
+7. [Convenience Commands](#7-convenience-commands)  
+8. [Turn API On/Off (AWS Gateway + Lambda)](#8-turn-api-onoff-aws-gateway--lambda)  
 
 ---
 
-## Prerequisites
+## 1. Initial Setup
 
-- macOS (steps assume MacBook terminal usage)  
-- Basic familiarity with Terminal commands  
-- Go installed (version 1.20+ recommended)  
-- Homebrew (package manager for macOS)  
-- Node.js and npm installed via Homebrew  
+**Terminal:** macOS Terminal
 
----
-
-## Installation and Setup
-
-### 1. Install Homebrew
-
-Open your **Mac Terminal** and run:
+### Install Homebrew
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-````
-
-After installation completes, run these to add Homebrew to your shell environment:
-
-```bash
 echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
 eval "$(/opt/homebrew/bin/brew shellenv)"
-```
+````
 
----
-
-### 2. Install Node.js and npm
-
-In Terminal, run:
+### Install Node.js and npm
 
 ```bash
 brew install node
-```
-
-Verify installation:
-
-```bash
 node -v
 npm -v
 ```
 
+### Install AWS CLI
+
+```bash
+brew install awscli
+```
+
+### Configure AWS CLI
+
+```bash
+aws configure
+```
+
+* Access Key ID: `<your-aws-access-key-id>`
+* Secret Access Key: `<your-aws-secret-access-key>`
+* Default region name: `us-east-2` (or your preferred region)
+* Output format: `json`
+
 ---
 
-### 3. Setup Backend (Go API)
+## 2. Backend (Go) Setup
 
-Create your Go API file `main.go` (not included here).
+**Terminal:** VS Code terminal
 
-To run your backend server locally:
+### Initialize Go module
+
+```bash
+go mod init <your-module-name>
+```
+
+### Create main.go and write API handler
+
+* Inside `main.go`, insert rest of the code here.
+
+### Run Go server locally
 
 ```bash
 go run main.go
 ```
 
-This will start the server on port 8080 at:
-
-```
-http://localhost:8080/hello
-```
-
 ---
 
-### 4. Setup Frontend (Vite + React)
+## 3. Frontend (Vite + React) Setup
 
-In a **new Terminal window**, run these commands in order:
+**Terminal:** macOS Terminal (outside backend folder)
+
+### Create React project with Vite
 
 ```bash
-npm create vite@latest my-app -- --template react
-cd my-app
+npm create vite@latest <your-app-name> -- --template react
+cd <your-app-name>
 npm install
 ```
 
-After installing dependencies, replace the default `src/App.jsx` with the provided frontend code (not included here).
-
-Start the frontend development server:
+### Start development server
 
 ```bash
 npm run dev
 ```
 
-This will start the frontend on a URL like:
+---
 
+## 4. AWS Deployment Setup
+
+**Terminal:** VS Code terminal inside your Go backend folder
+
+### Build Go Lambda binary
+
+```bash
+GOOS=linux GOARCH=amd64 go build -o main main.go
 ```
-http://localhost:5173
+
+### Zip the binary
+
+```bash
+zip function.zip main
+```
+
+### Create IAM Role in AWS Console
+
+* Go to IAM → Roles → Create Role
+* Trusted entity: AWS Lambda
+* Permissions: `AWSLambdaBasicExecutionRole`
+* Name: `<your-lambda-role-name>`
+
+### Copy the role ARN for next steps
+
+---
+
+## 5. Lambda + API Gateway Deployment
+
+**Terminal:** VS Code terminal
+
+### Create Lambda function
+
+```bash
+aws lambda create-function \
+--function-name <your-lambda-function-name> \
+--zip-file fileb://function.zip \
+--handler main \
+--runtime provided.al2 \
+--role <your-lambda-role-arn>
+```
+
+### (Optional) Update Lambda function later
+
+```bash
+zip function.zip main
+aws lambda update-function-code --function-name <your-lambda-function-name> --zip-file fileb://function.zip
+```
+
+### Create API Gateway HTTP API
+
+```bash
+aws apigatewayv2 create-api \
+--name <your-api-name> \
+--protocol-type HTTP \
+--target arn:aws:lambda:<region>:<account-id>:function:<your-lambda-function-name>
+```
+
+### Add CORS to Lambda (in Go code)
+
+* Inside the handler function:
+
+```go
+w.Header().Set("Access-Control-Allow-Origin", "*")
+```
+
+* Insert rest of the code here
+
+### Add permission for API Gateway to invoke Lambda
+
+```bash
+aws lambda add-permission \
+--function-name <your-lambda-function-name> \
+--statement-id apigateway-test-2 \
+--action lambda:InvokeFunction \
+--principal apigateway.amazonaws.com \
+--source-arn arn:aws:execute-api:<region>:<account-id>:<api-id>/*/GET/hello
 ```
 
 ---
 
-## Running the Application
+## 6. Testing & Troubleshooting
 
-1. Ensure your **Go backend** is running (`go run main.go`) and accessible on port 8080.
-2. Ensure your **React frontend** is running (`npm run dev`) and accessible on port 5173.
-3. Open `http://localhost:5173` in your browser, click the button to fetch message from backend.
+### Test endpoint via curl
 
----
+```bash
+curl https://<your-api-id>.execute-api.<region>.amazonaws.com/prod/hello
+```
 
-## Deployment Notes
+### If port 8080 is busy (local dev only)
 
-* Deploy **backend** (Go API) to AWS Lambda + API Gateway or any server supporting Go HTTP servers.
-* Deploy **frontend** (React app) to AWS Amplify, S3 + CloudFront, or any static hosting platform.
-* Update the frontend’s fetch URL from `http://localhost:8080/hello` to your deployed backend URL when live.
+```bash
+lsof -i :8080
+kill -9 <pid>
+```
 
----
+### View Lambda logs
 
-## Troubleshooting
-
-* If `npm` or `node` commands are missing, confirm Homebrew and node install.
-* If port 8080 is busy, kill conflicting process or change port in `main.go`.
-* For CORS issues, configure your backend server to allow cross-origin requests.
+* Go to AWS Console → CloudWatch → Logs → Log groups → Find your Lambda
 
 ---
 
-## Optional Convenience Tips
+## 7. Convenience Commands
 
-* Install VS Code `code` command for quick terminal → editor workflow.
-* Use terminal multiplexers or tools like `concurrently` to run frontend + backend with one command.
+### Open VS Code in current directory
+
+```bash
+code .
+```
+
+### Start frontend dev server again
+
+```bash
+cd <your-app-name>
+npm run dev
+```
+
+### Stop running processes (Ctrl + C)
+
+* To stop the Go backend or Vite frontend running in a terminal.
 
 ---
+
+## 8. Turn API On/Off (AWS Gateway + Lambda)
+
+### Turn OFF API Gateway access (via AWS Console)
+
+1. Go to [API Gateway Console](https://console.aws.amazon.com/apigateway)
+2. Select your API (`<your-api-name>`)
+3. Click **Stages** → select `prod` (or your stage)
+4. Click **Delete stage** to take the endpoint offline
+
+*(You can redeploy later if needed)*
+
+### Disconnect Lambda from API (optional CLI)
+
+```bash
+aws lambda remove-permission \
+--function-name <your-lambda-function-name> \
+--statement-id apigateway-test-2
+```
+
+### Shut down Lambda completely (if not needed anymore)
+
+```bash
+aws lambda delete-function --function-name <your-lambda-function-name>
+```
+
+---
+
+Replace all placeholder values in `< >` with your actual values before running commands.
+
+---
+
+This completes the **exhaustive terminal commands and setup steps** for your fullstack Go + React + AWS Lambda API project.
 
 ```
 ```
