@@ -1,6 +1,4 @@
-Absolutely! Here’s a comprehensive, step-by-step guide covering everything we discussed, including all the terminal commands you’ll need for setup, development, deployment, and management. I’ll keep it in normal text for easy reading — no code for your app itself, only commands and instructions. Wherever you need to insert your own info, I mark it clearly with `<placeholders>`.
 
----
 
 ### Fullstack Go + React + AWS Deployment & Management Guide
 
@@ -87,13 +85,13 @@ npm run dev
 * **Build your Go binary for AWS Lambda (Linux environment):**
 
 ```bash
-GOOS=linux GOARCH=amd64 go build -o main main.go
+GOOS=linux GOARCH=amd64 go build -o bootstrap main.go
 ```
 
 * **Package the binary as a zip file:**
 
 ```bash
-zip function.zip main
+zip function.zip bootstrap 
 ```
 
 * **Create IAM Role in AWS Console:**
@@ -122,7 +120,7 @@ aws lambda create-function \
 * **Update Lambda code later (after edits):**
 
 ```bash
-zip function.zip main
+zip function.zip bootstrap
 aws lambda update-function-code --function-name <your-lambda-function-name> --zip-file fileb://function.zip
 ```
 

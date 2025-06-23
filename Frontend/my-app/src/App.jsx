@@ -8,7 +8,7 @@ export default function App() {
     setLoading(true);
     setMessage("");
     try {
-      const res = await fetch("http://localhost:8080/hello");
+      const res = await fetch("https://nutiekpnq7.execute-api.us-east-2.amazonaws.com/prod/hello");
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setMessage(data.message);
